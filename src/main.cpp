@@ -3,6 +3,9 @@
 #include <SPI.h>
 #include <esp_mac.h>
 
+// function definitions:
+void sendLapPacket();
+
 /*~~~~~Pin Mapping~~~~~*/
 
 // TF Luna 
@@ -52,7 +55,9 @@ SX1262 radio = new Module(LORA_NSS_PIN, LORA_DIO1_PIN, LORA_RST_PIN, LORA_BUSY_P
 uint32_t deviceId = 0;
 volatile bool countFlag = false;
 
-
+// button debounce
+unsigned long lastPressTime = 0;
+const unsigned long debounceDelay = 50;
 
 /*~~~~~Interrupts~~~~~*/
 
@@ -64,12 +69,14 @@ void IRAM_ATTR countISR(void)
 }
 
 /*~~~~~Helper Functions~~~~~*/
+
 void error_message(const char *message, int16_t state)
 {
   Serial.printf("ERROR!!! %s with error code %d\n", message, state);
   while (true)
     ; // loop forever
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -89,7 +96,7 @@ void setup() {
   pinMode(TF_CFG, OUTPUT);
   pinMode(TF_MODE, OUTPUT);
 
-  // get device id
+  // get device id 
   uint8_t mac[6];
   esp_read_mac(mac, ESP_MAC_WIFI_STA);
   deviceId = ((uint32_t)mac[3] << 16) |
@@ -98,12 +105,14 @@ void setup() {
 
   Serial.printf("Device ID: %06X\n", deviceId);
 
-  // initialize radio
+
+
+  /* Initialize Lora */
   // Set up SPI with our specific pins
   spi.begin(LORA_SCK_PIN, LORA_MISO_PIN, LORA_MOSI_PIN, LORA_NSS_PIN);
 
   Serial.print("Initializing radio...");
-  int16_t state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, 5, 0x34, 0, 8);
+  int16_t state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, 5, 0x12, 15, 8);
   if (state != RADIOLIB_ERR_NONE)
   {
     error_message("Radio initialization failed", state);
@@ -138,6 +147,38 @@ void setup() {
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  return;
+  if (countFlag)
+  {
+    countFlag = false;
+
+    unsigned long now = millis();
+
+    // check for debounce
+    if (now - lastPressTime > debounceDelay)
+    {
+      lastPressTime = now;
+
+      sendLapPacket();
+    }
+  }
+}
+
+
+void sendLapPacket() {
+  uint8_t data[3];
+
+  data[0] = (deviceId >> 16) & 0xFF;
+  data[1] = (deviceId >> 8) & 0xFF;
+  data[2] = deviceId & 0xFF;
+
+  int16_t state = radio.transmit(data, 3);
+
+  if (state == RADIOLIB_ERR_NONE)
+  {
+    Serial.println("Packet sent!");
+  }
+  else
+  {
+    Serial.printf("Transmit failed, code %d\n", state);
+  }
 }
