@@ -2,6 +2,8 @@
 #include <RadioLib.h>
 #include <SPI.h>
 #include <esp_mac.h>
+#include <U8g2lib.h>
+#include <TFMPlus.h>
 
 // function definitions:
 void sendLapPacket();
@@ -9,8 +11,8 @@ void sendLapPacket();
 /*~~~~~Pin Mapping~~~~~*/
 
 // TF Luna 
-#define TF_RX_TX 6 // SDA/RXD
-#define TF_TX_RX 7 // SCL/TXD
+#define TF_SDA_RX 6 // SDA/RXD
+#define TF_SCL_TX 7 // SCL/TXD
 #define TF_CFG 3
 #define TF_MODE 2
 
@@ -18,7 +20,7 @@ void sendLapPacket();
 #define RESET_BTN 42
 #define COUNT_UP_BTN 41 // <-- use this for triggering laps for now
 
-// Display outputs
+// Gym Timer Display outputs
 #define RESET_SIG 4
 #define COUNT_SIG 5
 
@@ -36,6 +38,17 @@ void sendLapPacket();
 #define LORA_BUSY_PIN 13
 #define LORA_DIO1_PIN 14
 
+/*~~~~~TF Luna Setup~~~~~*/
+
+TFMPlus tfmP;
+HardwareSerial TFSerial(1);
+
+#define LAP_TRIGGER_CM 50
+#define LAP_HYSTERSIS_CM 80
+int16_t dist = 0;
+int16_t flux = 0;
+int16_t temp = 0;
+
 
 /*~~~~~Radio Configuration~~~~~*/
 
@@ -49,6 +62,23 @@ SX1262 radio = new Module(LORA_NSS_PIN, LORA_DIO1_PIN, LORA_RST_PIN, LORA_BUSY_P
 #define LORA_FREQ 915.0
 #define LORA_BW 125.0
 #define LORA_SF 9
+
+
+/*~~~~~Screen Configuration~~~~~*/
+
+#define OLED_RESET 21
+#define OLED_SDA 17
+#define OLED_SCL 18
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/OLED_SCL, /* data=*/OLED_SDA, /* reset=*/OLED_RESET); // All Boards without Reset of the Display
+
+// Screen drawing locations
+#define X_MAX 128
+#define Y_MAX 64
+static uint8_t iteration_count = 0;
+static uint32_t x_coor = 0;
+static uint32_t y_coor = 10;
+static int8_t x_rate = 4;
+static int8_t y_rate = 4;
 
 /*~~~~~Global Variables~~~~~*/
 
@@ -91,10 +121,10 @@ void setup() {
   pinMode(RESET_SIG, OUTPUT);
   pinMode(COUNT_SIG, OUTPUT);
 
-  pinMode(TF_RX_TX, INPUT);
-  pinMode(TF_TX_RX, INPUT);
-  pinMode(TF_CFG, OUTPUT);
+  // TF Luna in UART mode
   pinMode(TF_MODE, OUTPUT);
+  pinMode(TF_CFG, OUTPUT);
+  
 
   // get device id 
   uint8_t mac[6];
@@ -106,6 +136,12 @@ void setup() {
   Serial.printf("Device ID: %06X\n", deviceId);
 
 
+  /* Initialize TF Luna */
+  TFSerial.begin(115200, SERIAL_8N1, TF_SDA_RX, TF_SCL_TX);
+  delay(200);
+
+  tfmP.begin(&TFSerial);
+  Serial.println("TFMPlus initialized");
 
   /* Initialize Lora */
   // Set up SPI with our specific pins
@@ -161,6 +197,16 @@ void loop() {
       sendLapPacket();
     }
   }
+
+  if (tfmP.getData(dist, flux, temp))
+  {
+    Serial.printf("Dist: %d cm | Flux: %d | Temp: %d\n", dist, flux, temp);
+  }
+  else
+  {
+    tfmP.printReply();
+  }
+  delay(100);
 }
 
 
