@@ -44,7 +44,10 @@ TFMPlus tfmP;
 HardwareSerial TFSerial(1);
 
 #define LAP_TRIGGER_CM 50
-#define LAP_HYSTERSIS_CM 80
+#define LAP_HYSTERSIS_CM 80 // be ready to trigger once cart exceed 80cm away
+
+static bool armed = true; // waiting for car, set to false while car is passing by
+
 int16_t dist = 0;
 int16_t flux = 0;
 int16_t temp = 0;
@@ -198,15 +201,20 @@ void loop() {
     }
   }
 
-  if (tfmP.getData(dist, flux, temp))
+  tfmP.getData(dist, flux, temp);
+  // check if armed and dist > 0 as 0 is default when too far away
+  if (armed && dist > 0 && dist <= LAP_TRIGGER_CM)
   {
-    Serial.printf("Dist: %d cm | Flux: %d | Temp: %d\n", dist, flux, temp);
-  }
-  else
+    // car is passing by
+    armed = false;
+    Serial.printf("Lap! dist=%d\n", dist);
+    sendLapPacket();
+  } 
+  else if (!armed && dist >= LAP_HYSTERSIS_CM) // once car passes by and distance goes above hystersis threshold
   {
-    tfmP.printReply();
+    armed = true;
+    Serial.println("Re-armed");
   }
-  delay(100);
 }
 
 
