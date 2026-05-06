@@ -156,9 +156,10 @@ void setup() {
   pinMode(TF_CFG, OUTPUT);
   
 
-  // get device id 
+  // get device id from factory-burned eFuse base MAC (3 bytes)
+  // IEEE 802 format is first 3 OUI, last 3 vendor unique
   uint8_t mac[6];
-  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  esp_efuse_mac_get_default(mac);
   deviceId = ((uint32_t)mac[3] << 16) |
              ((uint32_t)mac[4] << 8) |
              mac[5];
