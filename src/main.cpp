@@ -80,7 +80,7 @@ void error_message(const char *message, int16_t state)
 
 void setup() {
   Serial.begin(115200);
-
+  delay(2000);
   // button flag setup
   pinMode(COUNT_UP_BTN, INPUT_PULLUP); // wired to pullup for easier testing
   attachInterrupt(digitalPinToInterrupt(COUNT_UP_BTN), countISR, FALLING);
