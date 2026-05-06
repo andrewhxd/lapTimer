@@ -57,7 +57,7 @@ volatile bool countFlag = false;
 
 // button debounce
 unsigned long lastPressTime = 0;
-const unsigned long debounceDelay = 50;
+const unsigned long debounceDelay = 300;
 
 /*~~~~~Interrupts~~~~~*/
 
