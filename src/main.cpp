@@ -83,10 +83,15 @@ static uint32_t y_coor = 10;
 static int8_t x_rate = 4;
 static int8_t y_rate = 4;
 
+// String to draw on screen
+static char display_str[80] = {0};
+
 /*~~~~~Global Variables~~~~~*/
 
 uint32_t deviceId = 0;
 volatile bool countFlag = false;
+
+static uint32_t laps_sent = 0;
 
 // button debounce
 unsigned long lastPressTime = 0;
@@ -110,6 +115,28 @@ void error_message(const char *message, int16_t state)
     ; // loop forever
 }
 
+// Draw text horizontally centered on the screen at the given baseline y.
+// Uses whatever font is currently set on `display`.
+void draw_centered(int16_t y, const char *text)
+{
+  int16_t w = display.getStrWidth(text);
+  int16_t x = (X_MAX - w) / 2;
+  if (x < 0)
+    x = 0; // string wider than screen — pin to left
+  display.drawStr(x, y, text);
+}
+
+void logo()
+{
+  snprintf(display_str, sizeof(display_str), "Initializing");
+  display.clearBuffer();
+  draw_centered(25, display_str);
+
+  snprintf(display_str, sizeof(display_str), "Detector");
+  draw_centered(50, display_str);
+
+  display.sendBuffer();
+}
 
 void setup() {
   Serial.begin(115200);
@@ -183,6 +210,16 @@ void setup() {
 
   Serial.println("Complete!");
   Serial.println("Ready. Press COUNT_UP_BTN to send packet.");
+
+  // Initialize the display
+  display.begin();
+  display.setContrast(200);
+  display.setFont(u8g2_font_ncenB10_tr);
+
+  // draw startup logo
+  logo();
+  delay(3000);
+  display.clear();
 }
 
 void loop() {
@@ -215,10 +252,29 @@ void loop() {
     armed = true;
     Serial.println("Re-armed");
   }
+
+  /* Live display update: previous lap + current elapsed */
+  static uint32_t last_draw_ms = 0;
+  uint32_t now = millis();
+  if (now - last_draw_ms >= 100) // ~10 Hz refresh
+  {
+    last_draw_ms = now;
+
+    display.clearBuffer();
+
+    // print alive message
+    snprintf(display_str, sizeof(display_str), "Lap Timer");
+    draw_centered(25, display_str);
+
+    snprintf(display_str, sizeof(display_str), "Sent: %u", laps_sent);
+    draw_centered(50, display_str);
+    display.sendBuffer();
+  }
 }
 
-
 void sendLapPacket() {
+  laps_sent++;
+
   uint8_t data[3];
 
   data[0] = (deviceId >> 16) & 0xFF;
