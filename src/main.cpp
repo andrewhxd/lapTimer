@@ -72,6 +72,7 @@ SX1262 radio = new Module(LORA_NSS_PIN, LORA_DIO1_PIN, LORA_RST_PIN, LORA_BUSY_P
 
 /*~~~~~Screen Configuration~~~~~*/
 
+#define VEXT_CTRL 36
 #define OLED_RESET 21
 #define OLED_SDA 17
 #define OLED_SCL 18
@@ -218,6 +219,9 @@ void setup() {
   Serial.println("Ready. Press COUNT_UP_BTN to send packet.");
 
   // Initialize the display
+  pinMode(VEXT_CTRL, OUTPUT);
+  digitalWrite(VEXT_CTRL, LOW);
+
   display.begin();
   display.setContrast(200);
   display.setFont(u8g2_font_ncenB10_tr);
