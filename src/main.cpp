@@ -13,8 +13,8 @@ void sendLapPacket();
 // TF Luna 
 #define TF_SDA_RX 6 // SDA/RXD
 #define TF_SCL_TX 7 // SCL/TXD
-#define TF_CFG 3
-#define TF_MODE 2
+// #define TF_CFG 3
+// #define TF_MODE 2 <- GPIO Pin 2 Conflicts with GC1109 FEM
 
 // Buttons (input)
 #define RESET_BTN 42
@@ -37,6 +37,9 @@ void sendLapPacket();
 #define LORA_RST_PIN 12
 #define LORA_BUSY_PIN 13
 #define LORA_DIO1_PIN 14
+
+// GC1109 front-end enable (CSD)
+#define FEM_EN 2
 
 /*~~~~~TF Luna Setup~~~~~*/
 
@@ -151,9 +154,9 @@ void setup() {
   pinMode(RESET_SIG, OUTPUT);
   pinMode(COUNT_SIG, OUTPUT);
 
-  // TF Luna in UART mode
-  pinMode(TF_MODE, OUTPUT);
-  pinMode(TF_CFG, OUTPUT);
+  // TF Luna in UART mode, tx and rx are configured elsewhere
+  // pinMode(TF_MODE, OUTPUT);
+  // pinMode(TF_CFG, OUTPUT);
   
 
   // get device id from factory-burned eFuse base MAC (3 bytes)
@@ -176,10 +179,12 @@ void setup() {
 
   /* Initialize Lora */
   // Set up SPI with our specific pins
+  pinMode(FEM_EN, OUTPUT);
+  digitalWrite(FEM_EN, HIGH); // GC1109 Permanently Enabled
   spi.begin(LORA_SCK_PIN, LORA_MISO_PIN, LORA_MOSI_PIN, LORA_NSS_PIN);
 
   Serial.print("Initializing radio...");
-  int16_t state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, 5, 0x12, 15, 8);
+  int16_t state = radio.begin(LORA_FREQ, LORA_BW, LORA_SF, 5, 0x12, 22, 8);
   if (state != RADIOLIB_ERR_NONE)
   {
     error_message("Radio initialization failed", state);
